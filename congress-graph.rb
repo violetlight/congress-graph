@@ -46,6 +46,7 @@ Cadet::BatchInserter::Session.open "neo4j-community-2.0.1/data/graph.db" do
   puts "loading presidents/vice presidents"
   YAML.load_file('data/congress-legislators/executive.yaml').each do |executive|
     transaction do
+      next unless executive["id"]["thomas"]
       e = Legislator_by_thomas_id(executive["id"]["thomas"].to_i)
       e[:gender] = executive["bio"]["gender"].to_s
       e[:name] = "#{executive['name']['first'].to_s} #{executive['name']['last'].to_s}"
@@ -56,8 +57,7 @@ Cadet::BatchInserter::Session.open "neo4j-community-2.0.1/data/graph.db" do
       executive["terms"].each do |term|
         t = create_Term({:role => term["type"].to_s, :start => term["start"].gsub(/-/, '').to_i, :end => term["end"].gsub(/-/, '').to_i})
 
-        t.party_to      Party_by_name(term["party"].to_s)
-        t.represents_to State_by_name(term["state"].to_s)
+        t.party_to Party_by_name(term["party"].to_s)
 
         e.term_to t
       end
