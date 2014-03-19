@@ -43,6 +43,31 @@ Cadet::BatchInserter::Session.open "neo4j-community-2.0.1/data/graph.db" do
     end
   end
 
+  puts "loading presidents/vice presidents"
+  YAML.load_file('data/congress-legislators/executive.yaml').each do |executive|
+    transaction do
+      e = Legislator_by_thomas_id(executive["id"]["thomas"].to_i)
+      e[:gender] = executive["bio"]["gender"].to_s
+      e[:name] = "#{executive['name']['first'].to_s} #{executive['name']['last'].to_s}"
+
+      e.gender_to Gender_by_name(executive["bio"]["gender"]) if executive["bio"]["gender"]
+      e.religion_to Religion_by_name(executive["bio"]["religion"]) if executive["bio"]["religion"]
+
+      executive["terms"].each do |term|
+        t = create_Term({:role => term["type"].to_s, :start => term["start"].gsub(/-/, '').to_i, :end => term["end"].gsub(/-/, '').to_i})
+
+        t.party_to      Party_by_name(term["party"].to_s)
+        t.represents_to State_by_name(term["state"].to_s)
+
+        e.term_to t
+      end
+
+      executive["terms"].map { |term| term["party"].to_s}.uniq.each do |party|
+        e.hyper_party_to Party_by_name(party)
+      end
+    end
+  end
+
   puts "loading committees"
   YAML.load_file('data/congress-legislators/committees-current.yaml').each do |committee_data|
     transaction do
@@ -109,5 +134,4 @@ Cadet::BatchInserter::Session.open "neo4j-community-2.0.1/data/graph.db" do
       bill.subject_top_term_to Subject_by_name(bill_data["subjects_top_term"]) if bill_data["subjects_top_term"]
     end
   end
-
 end
